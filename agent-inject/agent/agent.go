@@ -723,7 +723,7 @@ func (a *Agent) Patch() ([]byte, error) {
 				oldCommand := container.Command
 				oldArgs := container.Args
 				newCommand := []string{"/bin/sh", "-ec"}
-				injectContainerArg := fmt.Sprintf("echo ${VAULT_CONFIG?} | base64 -d > /home/vault/config.json && %s/vault agent -config=/home/vault/config.json -wrap-process=true", tokenVolumePath)
+				injectContainerArg := fmt.Sprintf("echo ${VAULT_CONFIG?} | base64 -d > /home/vault/config.json && %s/vault agent -config=/home/vault/config.json", tokenVolumePath)
 				newArgs := injectContainerArg + " -- " + strings.Join(oldCommand, " ") + " " + strings.Join(oldArgs, " ")
 				patches = append(patches, replaceSlice(
 					newCommand,
