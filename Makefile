@@ -44,15 +44,20 @@ deploy: image
 
 exercise:
 	kubectl exec vault-0 -- vault kv put secret/test-app hello=world
+	# set up k8s auth
 	kubectl exec vault-0 -- vault auth enable kubernetes || true
 	kubectl exec vault-0 -- sh -c 'vault write auth/kubernetes/config kubernetes_host="https://$$KUBERNETES_PORT_443_TCP_ADDR:443"'
-	echo 'path "secret/data/*" { capabilities = ["read"] }' | kubectl exec -i vault-0 -- vault policy write test-app -
 	kubectl exec vault-0 -- vault write auth/kubernetes/role/test-app \
 		bound_service_account_names=test-app-sa \
 		bound_service_account_namespaces=default \
 		policies=test-app
+	# vault policy
+	echo 'path "secret/data/*" { capabilities = ["read"] }' | kubectl exec -i vault-0 -- vault policy write test-app -
+	# service account
 	kubectl create serviceaccount test-app-sa || true
+	# clean up
 	kubectl delete pod nginx --ignore-not-found
+	# set up nginx with annotations to pull from 
 	kubectl run nginx \
 		--image=nginx \
 		--annotations="vault.hashicorp.com/agent-inject=true" \
@@ -70,7 +75,7 @@ unit-test:
 
 .PHONY: mod
 mod:
-	@go mod tidy
+	go mod tidy
 
 fmt:
 	gofmt -w $(GOFMT_FILES)
