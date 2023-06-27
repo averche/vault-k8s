@@ -11,8 +11,9 @@ import (
 )
 
 var (
-	addOperation    = json.RawMessage(`"add"`)
-	removeOperation = json.RawMessage(`"remove"`)
+	addOperation     = json.RawMessage(`"add"`)
+	removeOperation  = json.RawMessage(`"remove"`)
+	replaceOperation = json.RawMessage(`"replace"`)
 )
 
 func AddOp(path string, value interface{}) jsonpatch.Operation {
@@ -42,6 +43,24 @@ func RemoveOp(path string) jsonpatch.Operation {
 	return map[string]*json.RawMessage{
 		"op":   &removeOperation,
 		"path": &pathRaw,
+	}
+}
+
+func ReplaceOp(path string, value interface{}) jsonpatch.Operation {
+	pathBytes, err := json.Marshal(path)
+	if err != nil {
+		panic(err) // shouldn't be possible
+	}
+	valueBytes, err := json.Marshal(value)
+	if err != nil {
+		panic(err) // shouldn't be possible
+	}
+	pathRaw := json.RawMessage(pathBytes)
+	valueRaw := json.RawMessage(valueBytes)
+	return map[string]*json.RawMessage{
+		"op":    &replaceOperation,
+		"path":  &pathRaw,
+		"value": &valueRaw,
 	}
 }
 

@@ -53,9 +53,11 @@ func removeContainers(path string) jsonpatch.Patch {
 	return []jsonpatch.Operation{internal.RemoveOp(path)}
 }
 
-func addEnvVars(target, vars []corev1.EnvVar, base string) []*jsonpatch.JsonPatchOperation {
-	var result []*jsonpatch.JsonPatchOperation
+func addEnvVars(target, vars []corev1.EnvVar, base string) jsonpatch.Patch {
+	var result jsonpatch.Patch
+
 	first := len(target) == 0
+
 	var value interface{}
 	for _, v := range vars {
 		value = v
@@ -67,23 +69,16 @@ func addEnvVars(target, vars []corev1.EnvVar, base string) []*jsonpatch.JsonPatc
 			path = path + "/-"
 		}
 
-		result = append(result, &jsonpatch.JsonPatchOperation{
-			Operation: "add",
-			Path:      path,
-			Value:     value,
-		})
+		result = append(result, internal.AddOp(path, value))
 	}
+
 	return result
 }
 
-func replaceSlice(newSlice []string, path string) []*jsonpatch.JsonPatchOperation {
-	var result []*jsonpatch.JsonPatchOperation
+func replaceSlice(newSlice []string, path string) jsonpatch.Patch {
+	var result jsonpatch.Patch
 
-	return append(result, &jsonpatch.JsonPatchOperation{
-		Operation: "replace",
-		Path:      path,
-		Value:     newSlice,
-	})
+	return append(result, internal.AddOp(path, newSlice))
 }
 
 func addContainers(target, containers []corev1.Container, base string) jsonpatch.Patch {
