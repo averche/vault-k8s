@@ -691,9 +691,9 @@ func (a *Agent) Patch() ([]byte, error) {
 		// directory
 		injectContainer, err := a.InjectContainer()
 		if err != nil {
-			return patches, err
+			return nil, err
 		}
-		a.Patches = append(a.Patches, addContainers(
+		patches = append(patches, addContainers(
 			a.Pod.Spec.InitContainers,
 			[]corev1.Container{injectContainer},
 			"/spec/initContainers")...)
@@ -704,17 +704,17 @@ func (a *Agent) Patch() ([]byte, error) {
 		// cheating here and just configuring as an init container, to run and exit
 		envs, err := a.ContainerEnvVars(true)
 		if err != nil {
-			return patches, err
+			return nil, err
 		}
 
 		for i, container := range a.Pod.Spec.Containers {
 			if strutil.StrListContains(a.Containers, container.Name) {
-				a.Patches = append(a.Patches, addVolumeMounts(
+				patches = append(patches, addVolumeMounts(
 					container.VolumeMounts,
 					volumeMounts,
 					fmt.Sprintf("/spec/containers/%d/volumeMounts", i))...)
 
-				a.Patches = append(a.Patches, addEnvVars(
+				patches = append(patches, addEnvVars(
 					container.Env,
 					envs,
 					fmt.Sprintf("/spec/containers/%d/env", i))...)
@@ -725,10 +725,10 @@ func (a *Agent) Patch() ([]byte, error) {
 				newCommand := []string{"/bin/sh", "-ec"}
 				injectContainerArg := fmt.Sprintf("echo ${VAULT_CONFIG?} | base64 -d > /home/vault/config.json && %s/vault agent -config=/home/vault/config.json -wrap-process=true", tokenVolumePath)
 				newArgs := injectContainerArg + " -- " + strings.Join(oldCommand, " ") + " " + strings.Join(oldArgs, " ")
-				a.Patches = append(a.Patches, replaceSlice(
+				patches = append(patches, replaceSlice(
 					newCommand,
 					fmt.Sprintf("/spec/containers/%d/command", i))...)
-				a.Patches = append(a.Patches, replaceSlice(
+				patches = append(patches, replaceSlice(
 					[]string{newArgs},
 					fmt.Sprintf("/spec/containers/%d/args", i))...)
 			}
