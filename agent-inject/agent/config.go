@@ -87,6 +87,7 @@ type Template struct {
 	Command        string `json:"command,omitempty"`
 	Source         string `json:"source,omitempty"`
 	Perms          string `json:"perms,omitempty"`
+	SetAsEnv       bool   `json:"set_as_env,omitempty"`
 }
 
 // Listener defines the configuration for Vault Agent Cache Listener
@@ -208,6 +209,10 @@ func (a *Agent) newTemplateConfigs() []*Template {
 		}
 		if secret.FilePermission != "" {
 			tmpl.Perms = secret.FilePermission
+		}
+		if secret.SetAsEnv != "" {
+			tmpl.SetAsEnv = true
+			tmpl.Destination = secret.SetAsEnv
 		}
 		templates = append(templates, tmpl)
 	}

@@ -4,7 +4,7 @@
 package agent
 
 import (
-	"github.com/evanphx/json-patch"
+	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/hashicorp/vault-k8s/agent-inject/internal"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -51,6 +51,39 @@ func addVolumeMounts(target, mounts []corev1.VolumeMount, base string) jsonpatch
 
 func removeContainers(path string) jsonpatch.Patch {
 	return []jsonpatch.Operation{internal.RemoveOp(path)}
+}
+
+func addEnvVars(target, vars []corev1.EnvVar, base string) []*jsonpatch.JsonPatchOperation {
+	var result []*jsonpatch.JsonPatchOperation
+	first := len(target) == 0
+	var value interface{}
+	for _, v := range vars {
+		value = v
+		path := base
+		if first {
+			first = false
+			value = []corev1.EnvVar{v}
+		} else {
+			path = path + "/-"
+		}
+
+		result = append(result, &jsonpatch.JsonPatchOperation{
+			Operation: "add",
+			Path:      path,
+			Value:     value,
+		})
+	}
+	return result
+}
+
+func replaceSlice(newSlice []string, path string) []*jsonpatch.JsonPatchOperation {
+	var result []*jsonpatch.JsonPatchOperation
+
+	return append(result, &jsonpatch.JsonPatchOperation{
+		Operation: "replace",
+		Path:      path,
+		Value:     newSlice,
+	})
 }
 
 func addContainers(target, containers []corev1.Container, base string) jsonpatch.Patch {

@@ -120,3 +120,39 @@ func (a *Agent) ContainerInitSidecar() (corev1.Container, error) {
 	}
 	return newContainer, nil
 }
+
+// InjectContainer creates a new init container to be added to the pod being
+// mutated. It copies the vault binary into a shared memory volume that can be
+// accessed in the app container.
+func (a *Agent) InjectContainer() (corev1.Container, error) {
+	// volumeMounts := a.ContainerVolumeMounts()
+	volumeMounts := []corev1.VolumeMount{
+		{
+			Name:      tokenVolumeNameSidecar,
+			MountPath: tokenVolumePath,
+			ReadOnly:  false,
+		},
+	}
+
+	arg := fmt.Sprintf("cp /bin/vault %s", tokenVolumePath)
+
+	resources, err := a.parseResources()
+	if err != nil {
+		return corev1.Container{}, err
+	}
+
+	newContainer := corev1.Container{
+		Name:  "vault-agent-direct-inject",
+		Image: a.ImageName,
+		// Env:          envs,
+		Resources:    resources,
+		VolumeMounts: volumeMounts,
+		Command:      []string{"/bin/sh", "-ec"},
+		Args:         []string{arg},
+	}
+	if a.SetSecurityContext {
+		newContainer.SecurityContext = a.securityContext()
+	}
+
+	return newContainer, nil
+}

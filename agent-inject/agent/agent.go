@@ -188,6 +188,9 @@ type Agent struct {
 
 	// AutoAuthExitOnError is used to control if a failure in the auto_auth method will cause the agent to exit or try indefinitely (the default).
 	AutoAuthExitOnError bool
+
+	// InjectDirect - inject vault-agent directly into the app container (no sidecars)
+	InjectDirect bool
 }
 
 type ServiceAccountTokenVolume struct {
@@ -227,6 +230,9 @@ type Secret struct {
 
 	// FilePermission is the optional file permission for the rendered secret file
 	FilePermission string
+
+	// SetAsEnv - The name of the environment variable to set this as
+	SetAsEnv string
 }
 
 type Vault struct {
@@ -397,6 +403,11 @@ func New(pod *corev1.Pod) (*Agent, error) {
 	}
 
 	agent.Vault.AgentTelemetryConfig = agent.telemetryConfig()
+
+	agent.InjectDirect, err = agent.injectDirect()
+	if err != nil {
+		return agent, err
+	}
 
 	agent.InitFirst, err = agent.initFirst()
 	if err != nil {
@@ -613,7 +624,7 @@ func (a *Agent) Patch() ([]byte, error) {
 	}
 
 	// Init Container
-	if a.PrePopulate {
+	if a.PrePopulate && !a.InjectDirect {
 		container, err := a.ContainerInitSidecar()
 		if err != nil {
 			return nil, err
@@ -664,7 +675,7 @@ func (a *Agent) Patch() ([]byte, error) {
 	}
 
 	// Sidecar Container
-	if !a.PrePopulateOnly {
+	if !a.PrePopulateOnly && !a.InjectDirect {
 		container, err := a.ContainerSidecar()
 		if err != nil {
 			return nil, err
@@ -673,6 +684,55 @@ func (a *Agent) Patch() ([]byte, error) {
 			a.Pod.Spec.Containers,
 			[]corev1.Container{container},
 			"/spec/containers")...)
+	}
+
+	if a.InjectDirect {
+		// Add init container that copies the vault binary into the vault home
+		// directory
+		injectContainer, err := a.InjectContainer()
+		if err != nil {
+			return patches, err
+		}
+		a.Patches = append(a.Patches, addContainers(
+			a.Pod.Spec.InitContainers,
+			[]corev1.Container{injectContainer},
+			"/spec/initContainers")...)
+
+		// need to mount vault home dir here
+		volumeMounts := a.directInjectVolumeMounts()
+
+		// cheating here and just configuring as an init container, to run and exit
+		envs, err := a.ContainerEnvVars(true)
+		if err != nil {
+			return patches, err
+		}
+
+		for i, container := range a.Pod.Spec.Containers {
+			if strutil.StrListContains(a.Containers, container.Name) {
+				a.Patches = append(a.Patches, addVolumeMounts(
+					container.VolumeMounts,
+					volumeMounts,
+					fmt.Sprintf("/spec/containers/%d/volumeMounts", i))...)
+
+				a.Patches = append(a.Patches, addEnvVars(
+					container.Env,
+					envs,
+					fmt.Sprintf("/spec/containers/%d/env", i))...)
+
+				// TODO(tvoran): lookup container entrypoint if command and args are empty
+				oldCommand := container.Command
+				oldArgs := container.Args
+				newCommand := []string{"/bin/sh", "-ec"}
+				injectContainerArg := fmt.Sprintf("echo ${VAULT_CONFIG?} | base64 -d > /home/vault/config.json && %s/vault agent -config=/home/vault/config.json -wrap-process=true", tokenVolumePath)
+				newArgs := injectContainerArg + " -- " + strings.Join(oldCommand, " ") + " " + strings.Join(oldArgs, " ")
+				a.Patches = append(a.Patches, replaceSlice(
+					newCommand,
+					fmt.Sprintf("/spec/containers/%d/command", i))...)
+				a.Patches = append(a.Patches, replaceSlice(
+					[]string{newArgs},
+					fmt.Sprintf("/spec/containers/%d/args", i))...)
+			}
+		}
 	}
 
 	// Add annotations so that we know we're injected
@@ -865,4 +925,52 @@ func (a *Agent) copyVolumeMounts(targetContainerName string) []corev1.VolumeMoun
 		}
 	}
 	return copiedVolumeMounts
+}
+
+func (a *Agent) directInjectVolumeMounts() []corev1.VolumeMount {
+	// Add Volume Mounts
+	volumeMounts := []corev1.VolumeMount{
+		// {
+		// 	Name:      a.ServiceAccountTokenVolume.Name,
+		// 	MountPath: a.ServiceAccountTokenVolume.MountPath,
+		// 	ReadOnly:  false,
+		// },
+		{
+			Name:      tokenVolumeNameSidecar,
+			MountPath: tokenVolumePath,
+			ReadOnly:  false,
+		},
+	}
+	if a.ExtraSecret != "" {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      extraSecretVolumeName,
+			MountPath: extraSecretVolumePath,
+			ReadOnly:  true,
+		})
+	}
+
+	// arg := DefaultContainerArg
+
+	// if a.ConfigMapName != "" {
+	// 	volumeMounts = append(volumeMounts, corev1.VolumeMount{
+	// 		Name:      configVolumeName,
+	// 		MountPath: configVolumePath,
+	// 		ReadOnly:  true,
+	// 	})
+	// 	arg = fmt.Sprintf("touch %s && vault agent -config=%s/config.hcl", TokenFile, configVolumePath)
+	// }
+
+	if a.Vault.TLSSecret != "" {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      tlsSecretVolumeName,
+			MountPath: tlsSecretVolumePath,
+			ReadOnly:  true,
+		})
+	}
+
+	if a.VaultAgentCache.Persist {
+		volumeMounts = append(volumeMounts, a.cacheVolumeMount())
+	}
+
+	return volumeMounts
 }

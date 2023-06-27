@@ -60,6 +60,19 @@ const (
 	// If not provided, a default generic template is used.
 	AnnotationAgentInjectTemplate = "vault.hashicorp.com/agent-inject-template"
 
+	// AnnotationAgentInjectAsEnv is the key annotation for marking a secret as
+	// one to set as a variable in vault-agent's environment. The name of the
+	// secret is the string after "vault.hashicorp.com/agent-inject-as-env-",
+	// and should map to the same unique value provided in
+	// "vault.hashicorp.com/agent-inject-secret-". The value of this annotation
+	// is the name of the environment variable to set. Typically used with the
+	// "agent-inject-env" annotation.
+	AnnotationAgentInjectAsEnv = "vault.hashicorp.com/agent-inject-as-env"
+
+	// AnnotationAgentInjectDirect - Inject vault-agent as a wrapper around the
+	// app command
+	AnnotationAgentInjectDirect = "vault.hashicorp.com/agent-inject-direct"
+
 	// AnnotationAgentInjectContainers is the key of the annotation that controls
 	// in which containers the secrets volume should be mounted. Multiple containers can
 	// be specified in a comma-separated list. If not provided, the secrets volume will
@@ -575,6 +588,10 @@ func Init(pod *corev1.Pod, cfg AgentConfig) error {
 		}
 	}
 
+	if _, ok := pod.ObjectMeta.Annotations[AnnotationAgentInjectDirect]; !ok {
+		pod.ObjectMeta.Annotations[AnnotationAgentInjectDirect] = strconv.FormatBool(false)
+	}
+
 	return nil
 }
 
@@ -637,6 +654,11 @@ func (a *Agent) secrets() []*Secret {
 				s.FilePermission = val
 			}
 
+			setAsEnv := fmt.Sprintf("%s-%s", AnnotationAgentInjectAsEnv, raw)
+			if val, ok := a.Annotations[setAsEnv]; ok {
+				s.SetAsEnv = val
+			}
+
 			secrets = append(secrets, s)
 		}
 	}
@@ -647,6 +669,15 @@ func (a *Agent) inject() (bool, error) {
 	raw, ok := a.Annotations[AnnotationAgentInject]
 	if !ok {
 		return true, nil
+	}
+
+	return strconv.ParseBool(raw)
+}
+
+func (a *Agent) injectDirect() (bool, error) {
+	raw, ok := a.Annotations[AnnotationAgentInjectDirect]
+	if !ok {
+		return false, nil
 	}
 
 	return strconv.ParseBool(raw)
