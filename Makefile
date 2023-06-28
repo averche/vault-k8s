@@ -63,7 +63,8 @@ exercise:
 		--annotations="vault.hashicorp.com/agent-inject=true" \
 		--annotations="vault.hashicorp.com/agent-inject-direct=true" \
 		--annotations="vault.hashicorp.com/role=test-app" \
-		--annotations="vault.hashicorp.com/agent-inject-secret-secret.txt=secret/data/test-app" \
+		--annotations="vault.hashicorp.com/agent-inject-secret-my-secret=secret/data/test-app#data.hello" \
+		--annotations="vault.hashicorp.com/agent-inject-secret-as-env-my-secret=MY_SECRET_HELLO" \
 		--overrides='{ "apiVersion": "v1", "spec": { "serviceAccountName": "test-app-sa" } }'
 
 clean:
