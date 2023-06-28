@@ -8,12 +8,14 @@ import (
 	"fmt"
 	"path"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
 const (
 	DefaultMapTemplate  = "{{ with secret \"%s\" }}{{ range $k, $v := .Data }}{{ $k }}: {{ $v }}\n{{ end }}{{ end }}"
 	DefaultJSONTemplate = "{{ with secret \"%s\" }}{{ .Data | toJSON }}\n{{ end }}"
+	DefaultEnvTemlate   = "{{ with secret \"%s\" }}{{ .Data.%s }}{{ end }}"
 	DefaultTemplateType = "map"
 	PidFile             = "/home/vault/.pid"
 	TokenFile           = "/home/vault/.vault-token"
@@ -22,17 +24,19 @@ const (
 // Config is the top level struct that composes a Vault Agent
 // configuration file.
 type Config struct {
-	AutoAuth               *AutoAuth       `json:"auto_auth"`
-	ExitAfterAuth          bool            `json:"exit_after_auth"`
-	PidFile                string          `json:"pid_file"`
-	Vault                  *VaultConfig    `json:"vault"`
-	Templates              []*Template     `json:"template,omitempty"`
-	Listener               []*Listener     `json:"listener,omitempty"`
-	Cache                  *Cache          `json:"cache,omitempty"`
-	TemplateConfig         *TemplateConfig `json:"template_config,omitempty"`
-	DisableIdleConnections []string        `json:"disable_idle_connections,omitempty"`
-	DisableKeepAlives      []string        `json:"disable_keep_alives,omitempty"`
-	Telemetry              *Telemetry      `json:"telemetry,omitempty"`
+	AutoAuth               *AutoAuth              `json:"auto_auth"`
+	ExitAfterAuth          bool                   `json:"exit_after_auth"`
+	PidFile                string                 `json:"pid_file"`
+	Vault                  *VaultConfig           `json:"vault"`
+	Templates              []*Template            `json:"template,omitempty"`
+	EnvTemplates           map[string]EnvTemplate `json:"env_template,omitempty"`
+	Exec                   *Exec                  `json:"exec,omitempty"`
+	Listener               []*Listener            `json:"listener,omitempty"`
+	Cache                  *Cache                 `json:"cache,omitempty"`
+	TemplateConfig         *TemplateConfig        `json:"template_config,omitempty"`
+	DisableIdleConnections []string               `json:"disable_idle_connections,omitempty"`
+	DisableKeepAlives      []string               `json:"disable_keep_alives,omitempty"`
+	Telemetry              *Telemetry             `json:"telemetry,omitempty"`
 }
 
 // Vault contains configuration for connecting to Vault servers
@@ -79,15 +83,30 @@ type Sink struct {
 
 // Template defines the Consul Template parameters
 type Template struct {
-	CreateDestDirs           bool   `json:"create_dest_dirs,omitempty"`
-	Destination              string `json:"destination"`
-	Contents                 string `json:"contents,omitempty"`
-	LeftDelim                string `json:"left_delimiter,omitempty"`
-	RightDelim               string `json:"right_delimiter,omitempty"`
-	Command                  string `json:"command,omitempty"`
-	Source                   string `json:"source,omitempty"`
-	Perms                    string `json:"perms,omitempty"`
-	MapToEnvironmentVariable string `json:"-"`
+	CreateDestDirs bool   `json:"create_dest_dirs,omitempty"`
+	Destination    string `json:"destination"`
+	Contents       string `json:"contents,omitempty"`
+	LeftDelim      string `json:"left_delimiter,omitempty"`
+	RightDelim     string `json:"right_delimiter,omitempty"`
+	Command        string `json:"command,omitempty"`
+	Source         string `json:"source,omitempty"`
+	Perms          string `json:"perms,omitempty"`
+}
+
+// EnvTemplate corresponds to the env_template agent stanza
+type EnvTemplate struct {
+	Contents          string `json:"contents,omitempty"`
+	Source            string `json:"source,omitempty"`
+	ErrorOnMissingKey bool   `json:"error_on_missing_key,omitempty"`
+	LeftDelim         string `json:"left_delimiter,omitempty"`
+	RightDelim        string `json:"right_delimiter,omitempty"`
+}
+
+// Exec must be provided along with env_template in process supervisor mode
+type Exec struct {
+	Command                []string `json:"command"`
+	RestartOnSecretChanges string   `json:"restart_on_secret_changes"`
+	RestartStopSignal      string   `json:"restart_stop_signal"`
 }
 
 // Listener defines the configuration for Vault Agent Cache Listener
@@ -210,13 +229,53 @@ func (a *Agent) newTemplateConfigs() []*Template {
 		if secret.FilePermission != "" {
 			tmpl.Perms = secret.FilePermission
 		}
-		if secret.SetAsEnv != "" {
-			tmpl.SetAsEnv = true
-			tmpl.Destination = secret.SetAsEnv
-		}
 		templates = append(templates, tmpl)
 	}
 	return templates
+}
+
+func (a *Agent) newEnvTemplateConfigs() map[string]EnvTemplate {
+	templates := make(map[string]EnvTemplate)
+
+	for _, secret := range a.Secrets {
+		var (
+			template     = secret.Template
+			templateFile = secret.TemplateFile
+		)
+
+		secretPathParts := strings.SplitN(secret.Path, "#", 2)
+
+		if template == "" && templateFile == "" {
+			switch {
+			case len(secretPathParts) == 2:
+				template = fmt.Sprintf(DefaultEnvTemlate, secretPathParts[0], secretPathParts[1])
+			case a.DefaultTemplate == "json":
+				template = fmt.Sprintf(DefaultJSONTemplate, secret.Path)
+			case a.DefaultTemplate == "map":
+				template = fmt.Sprintf(DefaultMapTemplate, secret.Path)
+			}
+		}
+
+		tmpl := EnvTemplate{
+			Contents:          template,
+			Source:            templateFile,
+			ErrorOnMissingKey: true,
+			LeftDelim:         "{{",
+			RightDelim:        "}}",
+		}
+
+		templates[secret.Name] = tmpl
+	}
+
+	return templates
+}
+
+func (a *Agent) newExecConfig() *Exec {
+	return &Exec{
+		Command:                []string{"echo", "hi"},
+		RestartOnSecretChanges: "never",
+		RestartStopSignal:      "SIGTERM",
+	}
 }
 
 func (a *Agent) newConfig(init bool) ([]byte, error) {
@@ -251,7 +310,6 @@ func (a *Agent) newConfig(init bool) ([]byte, error) {
 				},
 			},
 		},
-		Templates: a.newTemplateConfigs(),
 		Telemetry: a.newTelemetryConfig(),
 		TemplateConfig: &TemplateConfig{
 			ExitOnRetryFailure:         a.VaultAgentTemplateConfig.ExitOnRetryFailure,
@@ -259,6 +317,13 @@ func (a *Agent) newConfig(init bool) ([]byte, error) {
 		},
 		DisableIdleConnections: a.DisableIdleConnections,
 		DisableKeepAlives:      a.DisableKeepAlives,
+	}
+
+	if a.InjectDirect {
+		config.EnvTemplates = a.newEnvTemplateConfigs()
+		config.Exec = a.newExecConfig()
+	} else {
+		config.Templates = a.newTemplateConfigs()
 	}
 
 	if a.InjectToken {

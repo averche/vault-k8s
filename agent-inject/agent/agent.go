@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	DefaultVaultImage                       = "hashicorp/vault:1.13.3"
+	DefaultVaultImage                       = "hashicorp/vault:1.14.0"
 	DefaultVaultAuthType                    = "kubernetes"
 	DefaultVaultAuthPath                    = "auth/kubernetes"
 	DefaultAgentRunAsUser                   = 100
@@ -231,8 +231,8 @@ type Secret struct {
 	// FilePermission is the optional file permission for the rendered secret file
 	FilePermission string
 
-	// SetAsEnv - The name of the environment variable to set this as
-	SetAsEnv string
+	// MapToEnvironmentVariable - The name of the environment variable to set this as
+	MapToEnvironmentVariable string
 }
 
 type Vault struct {

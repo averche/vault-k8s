@@ -654,14 +654,15 @@ func (a *Agent) secrets() []*Secret {
 				s.FilePermission = val
 			}
 
-			setAsEnv := fmt.Sprintf("%s-%s", AnnotationAgentInjectAsEnv, raw)
-			if val, ok := a.Annotations[setAsEnv]; ok {
-				s.SetAsEnv = val
+			mapToEnvironmentVariable := fmt.Sprintf("%s-%s", AnnotationAgentInjectAsEnv, raw)
+			if val, ok := a.Annotations[mapToEnvironmentVariable]; ok {
+				s.MapToEnvironmentVariable = val
 			}
 
 			secrets = append(secrets, s)
 		}
 	}
+
 	return secrets
 }
 
