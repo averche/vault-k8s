@@ -61,6 +61,7 @@ exercise:
 	kubectl run nginx \
 		--image=nginx \
 		--annotations="vault.hashicorp.com/agent-inject=true" \
+		--annotations="vault.hashicorp.com/agent-inject-direct=true" \
 		--annotations="vault.hashicorp.com/role=test-app" \
 		--annotations="vault.hashicorp.com/agent-inject-secret-secret.txt=secret/data/test-app" \
 		--overrides='{ "apiVersion": "v1", "spec": { "serviceAccountName": "test-app-sa" } }'

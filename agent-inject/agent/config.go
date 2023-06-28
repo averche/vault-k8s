@@ -79,15 +79,15 @@ type Sink struct {
 
 // Template defines the Consul Template parameters
 type Template struct {
-	CreateDestDirs bool   `json:"create_dest_dirs,omitempty"`
-	Destination    string `json:"destination"`
-	Contents       string `json:"contents,omitempty"`
-	LeftDelim      string `json:"left_delimiter,omitempty"`
-	RightDelim     string `json:"right_delimiter,omitempty"`
-	Command        string `json:"command,omitempty"`
-	Source         string `json:"source,omitempty"`
-	Perms          string `json:"perms,omitempty"`
-	SetAsEnv       bool   `json:"set_as_env,omitempty"`
+	CreateDestDirs           bool   `json:"create_dest_dirs,omitempty"`
+	Destination              string `json:"destination"`
+	Contents                 string `json:"contents,omitempty"`
+	LeftDelim                string `json:"left_delimiter,omitempty"`
+	RightDelim               string `json:"right_delimiter,omitempty"`
+	Command                  string `json:"command,omitempty"`
+	Source                   string `json:"source,omitempty"`
+	Perms                    string `json:"perms,omitempty"`
+	MapToEnvironmentVariable string `json:"-"`
 }
 
 // Listener defines the configuration for Vault Agent Cache Listener
