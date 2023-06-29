@@ -69,10 +69,10 @@ exercise:
 		--annotations="vault.hashicorp.com/role=test-app" \
 		--annotations="vault.hashicorp.com/agent-inject=true" \
 		--annotations="vault.hashicorp.com/agent-inject-direct=true" \
-		--annotations="vault.hashicorp.com/agent-inject-secret-my-user=secret/data/test-app#.Data.data.user" \
-		--annotations="vault.hashicorp.com/agent-inject-as-env-my-user=MY_USER" \
-		--annotations="vault.hashicorp.com/agent-inject-secret-my-password=secret/data/test-app#.Data.data.password" \
-		--annotations="vault.hashicorp.com/agent-inject-as-env-my-password=MY_PASSWORD" \
+		--annotations="vault.hashicorp.com/agent-inject-secret-test-user=secret/data/test-app#.Data.data.user" \
+		--annotations="vault.hashicorp.com/agent-inject-as-env-test-user=TEST_USER" \
+		--annotations="vault.hashicorp.com/agent-inject-secret-test-password=secret/data/test-app#.Data.data.password" \
+		--annotations="vault.hashicorp.com/agent-inject-as-env-test-password=TEST_PASSWORD" \
 		--overrides='{ "apiVersion": "v1", "spec": { "serviceAccountName": "test-app-sa" } }'
 
 clean:

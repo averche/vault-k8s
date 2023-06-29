@@ -1,17 +1,11 @@
 package main
 
 import (
-	_ "embed"
-	"html/template"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"sort"
-	"strings"
 )
-
-//go:embed index.tmpl
-var indexTemplate string
 
 type EnvironmentVariable struct {
 	Key   string
@@ -19,31 +13,19 @@ type EnvironmentVariable struct {
 }
 
 func main() {
-	tmpl, err := template.New("index").Parse(indexTemplate)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	http.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
-		var (
-			environmentVariables       = os.Environ()
-			environmentVariableStructs []EnvironmentVariable
+		fmt.Fprintf(w, `
+<!DOCTYPE html>
+<html>
+    <body>
+        <h1>Secrets from Vault</h1>
+        <p>TEST_USER = %s</p>
+        <p>TEST_PASSWORD = %s</p>
+    </body>
+</html>`,
+			os.Getenv("TEST_USER"),
+			os.Getenv("TEST_PASSWORD"),
 		)
-
-		sort.Strings(environmentVariables)
-
-		for _, env := range environmentVariables {
-			key, value, _ := strings.Cut(env, "=")
-			environmentVariableStructs = append(environmentVariableStructs, EnvironmentVariable{
-				Key:   key,
-				Value: value,
-			})
-		}
-
-		if err := tmpl.Execute(w, environmentVariableStructs); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
 	})
 
 	log.Println("listening on :7777")
