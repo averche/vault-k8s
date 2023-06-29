@@ -61,6 +61,9 @@ type Agent struct {
 	// in a pod request.
 	Inject bool
 
+	// InjectDirect will inject vault agent directly into the app's container (no sidecars).
+	InjectDirect bool
+
 	// InitFirst controls whether an init container is first to run.
 	InitFirst bool
 
@@ -188,9 +191,6 @@ type Agent struct {
 
 	// AutoAuthExitOnError is used to control if a failure in the auto_auth method will cause the agent to exit or try indefinitely (the default).
 	AutoAuthExitOnError bool
-
-	// InjectDirect - inject vault-agent directly into the app container (no sidecars)
-	InjectDirect bool
 }
 
 type ServiceAccountTokenVolume struct {
@@ -718,15 +718,17 @@ func (a *Agent) Patch() ([]byte, error) {
 					envs,
 					fmt.Sprintf("/spec/containers/%d/env", i))...)
 
-				// TODO(tvoran): lookup container entrypoint if command and args are empty
-				newCommand := []string{"/bin/sh", "-ec"}
-				injectContainerArg := fmt.Sprintf("echo ${VAULT_CONFIG?} | base64 -d > /home/vault/config.json && %s/vault agent -config=/home/vault/config.json -log-level=debug", tokenVolumePath)
-				newArgs := injectContainerArg
+				// replace the command with "vault agent -config=..."
 				patches = append(patches, replaceSlice(
-					newCommand,
+					[]string{
+						"/bin/sh", "-ec",
+					},
 					fmt.Sprintf("/spec/containers/%d/command", i))...)
+
 				patches = append(patches, replaceSlice(
-					[]string{newArgs},
+					[]string{
+						fmt.Sprintf("echo ${VAULT_CONFIG?} | base64 -d > /home/vault/config.json && %s/vault agent -config=/home/vault/config.json", tokenVolumePath),
+					},
 					fmt.Sprintf("/spec/containers/%d/args", i))...)
 			}
 		}
