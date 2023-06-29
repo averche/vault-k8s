@@ -42,6 +42,10 @@ deploy: image
 		--set 'injector.affinity=null' \
 		--set 'injector.annotations.deployed=unix-$(shell date +%s)'
 
+test-app-image:
+	docker build test-app/ -t test-app
+	kind load docker-image test-app
+
 exercise:
 	# insert a secret
 	kubectl exec vault-0 -- vault kv put secret/test-app user=hello password=world
