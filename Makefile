@@ -47,7 +47,7 @@ test-app-image:
 	kind load docker-image test-app
 
 exercise:
-	kubectl wait --for=condition=Ready pod/vault-0
+	kubectl wait --for=condition=Ready pod/
 	# insert a secret
 	kubectl exec vault-0 -- vault kv put secret/test-app user=hello password=world
 	# set up k8s auth
