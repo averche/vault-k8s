@@ -68,6 +68,7 @@ exercise:
 		--image="test-app" \
 		--image-pull-policy="IfNotPresent" \
 		--annotations="vault.hashicorp.com/role=test-app" \
+		--annotations="vault.hashicorp.com/template-static-secret-render-interval=5s" \
 		--annotations="vault.hashicorp.com/agent-inject=true" \
 		--annotations="vault.hashicorp.com/agent-inject-direct=true" \
 		--annotations="vault.hashicorp.com/agent-inject-secret-test-user=secret/data/test-app#.Data.data.user" \
