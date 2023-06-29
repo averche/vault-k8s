@@ -701,8 +701,7 @@ func (a *Agent) Patch() ([]byte, error) {
 		// need to mount vault home dir here
 		volumeMounts := a.directInjectVolumeMounts()
 
-		// cheating here and just configuring as an init container, to run and exit
-		envs, err := a.ContainerEnvVars(true)
+		envs, err := a.ContainerEnvVars(false)
 		if err != nil {
 			return nil, err
 		}
@@ -720,11 +719,9 @@ func (a *Agent) Patch() ([]byte, error) {
 					fmt.Sprintf("/spec/containers/%d/env", i))...)
 
 				// TODO(tvoran): lookup container entrypoint if command and args are empty
-				oldCommand := container.Command
-				oldArgs := container.Args
 				newCommand := []string{"/bin/sh", "-ec"}
-				injectContainerArg := fmt.Sprintf("echo ${VAULT_CONFIG?} | base64 -d > /home/vault/config.json && %s/vault agent -config=/home/vault/config.json", tokenVolumePath)
-				newArgs := injectContainerArg + " -- " + strings.Join(oldCommand, " ") + " " + strings.Join(oldArgs, " ")
+				injectContainerArg := fmt.Sprintf("echo ${VAULT_CONFIG?} | base64 -d > /home/vault/config.json && %s/vault agent -config=/home/vault/config.json -log-level=debug", tokenVolumePath)
+				newArgs := injectContainerArg
 				patches = append(patches, replaceSlice(
 					newCommand,
 					fmt.Sprintf("/spec/containers/%d/command", i))...)

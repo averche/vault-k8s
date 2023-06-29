@@ -60,11 +60,11 @@ exercise:
 	# set up nginx with annotations to pull from 
 	kubectl run nginx \
 		--image=nginx \
+		--annotations="vault.hashicorp.com/role=test-app" \
 		--annotations="vault.hashicorp.com/agent-inject=true" \
 		--annotations="vault.hashicorp.com/agent-inject-direct=true" \
-		--annotations="vault.hashicorp.com/role=test-app" \
 		--annotations="vault.hashicorp.com/agent-inject-secret-my-secret=secret/data/test-app#data.hello" \
-		--annotations="vault.hashicorp.com/agent-inject-secret-as-env-my-secret=MY_SECRET_HELLO" \
+		--annotations="vault.hashicorp.com/agent-inject-as-env-my-secret=MY_SECRET_HELLO" \
 		--overrides='{ "apiVersion": "v1", "spec": { "serviceAccountName": "test-app-sa" } }'
 
 clean:

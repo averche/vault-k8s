@@ -264,7 +264,7 @@ func (a *Agent) newEnvTemplateConfigs() map[string]EnvTemplate {
 			RightDelim:        "}}",
 		}
 
-		templates[secret.Name] = tmpl
+		templates[secret.MapToEnvironmentVariable] = tmpl
 	}
 
 	return templates
@@ -272,7 +272,7 @@ func (a *Agent) newEnvTemplateConfigs() map[string]EnvTemplate {
 
 func (a *Agent) newExecConfig() *Exec {
 	return &Exec{
-		Command:                []string{"echo", "hi"},
+		Command:                []string{"sleep", "300"},
 		RestartOnSecretChanges: "never",
 		RestartStopSignal:      "SIGTERM",
 	}
