@@ -7,11 +7,6 @@ import (
 	"os"
 )
 
-type EnvironmentVariable struct {
-	Key   string
-	Value string
-}
-
 func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprintf(w, `
