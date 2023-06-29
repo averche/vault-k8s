@@ -47,6 +47,7 @@ test-app-image:
 	kind load docker-image test-app
 
 exercise:
+	kubectl wait --for=condition=Ready pod/vault-0
 	# insert a secret
 	kubectl exec vault-0 -- vault kv put secret/test-app user=hello password=world
 	# set up k8s auth
@@ -74,6 +75,9 @@ exercise:
 		--annotations="vault.hashicorp.com/agent-inject-secret-test-password=secret/data/test-app#.Data.data.password" \
 		--annotations="vault.hashicorp.com/agent-inject-as-env-test-password=TEST_PASSWORD" \
 		--overrides='{ "apiVersion": "v1", "spec": { "serviceAccountName": "test-app-sa" } }'
+	# port-forward to the test-app
+	kubectl wait --for=condition=Ready pod/test-app
+	kubectl port-forward test-app 7777:7777
 
 clean:
 	-rm -rf $(BUILD_DIR)
