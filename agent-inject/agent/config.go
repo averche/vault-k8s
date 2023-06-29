@@ -273,7 +273,7 @@ func (a *Agent) newEnvTemplateConfigs() map[string]EnvTemplate {
 func (a *Agent) newExecConfig() *Exec {
 	return &Exec{
 		Command:                []string{"/test-app"}, // TODO: don't hardcode this
-		RestartOnSecretChanges: "never",
+		RestartOnSecretChanges: "always",
 		RestartStopSignal:      "SIGTERM",
 	}
 }
