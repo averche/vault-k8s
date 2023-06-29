@@ -43,7 +43,8 @@ deploy: image
 		--set 'injector.annotations.deployed=unix-$(shell date +%s)'
 
 exercise:
-	kubectl exec vault-0 -- vault kv put secret/test-app hello=world
+	# insert a secret
+	kubectl exec vault-0 -- vault kv put secret/test-app user=hello password=world
 	# set up k8s auth
 	kubectl exec vault-0 -- vault auth enable kubernetes || true
 	kubectl exec vault-0 -- sh -c 'vault write auth/kubernetes/config kubernetes_host="https://$$KUBERNETES_PORT_443_TCP_ADDR:443"'
@@ -56,15 +57,18 @@ exercise:
 	# service account
 	kubectl create serviceaccount test-app-sa || true
 	# clean up
-	kubectl delete pod nginx --ignore-not-found
-	# set up nginx with annotations to pull from 
-	kubectl run nginx \
-		--image=nginx \
+	kubectl delete pod test-app --ignore-not-found
+	# set up test-app with annotations to pull from 
+	kubectl run test-app \
+		--image="test-app" \
+		--image-pull-policy="IfNotPresent" \
 		--annotations="vault.hashicorp.com/role=test-app" \
 		--annotations="vault.hashicorp.com/agent-inject=true" \
 		--annotations="vault.hashicorp.com/agent-inject-direct=true" \
-		--annotations="vault.hashicorp.com/agent-inject-secret-my-secret=secret/data/test-app#data.hello" \
-		--annotations="vault.hashicorp.com/agent-inject-as-env-my-secret=MY_SECRET_HELLO" \
+		--annotations="vault.hashicorp.com/agent-inject-secret-my-user=secret/data/test-app#.Data.data.user" \
+		--annotations="vault.hashicorp.com/agent-inject-as-env-my-user=MY_USER" \
+		--annotations="vault.hashicorp.com/agent-inject-secret-my-password=secret/data/test-app#.Data.data.password" \
+		--annotations="vault.hashicorp.com/agent-inject-as-env-my-password=MY_PASSWORD" \
 		--overrides='{ "apiVersion": "v1", "spec": { "serviceAccountName": "test-app-sa" } }'
 
 clean:

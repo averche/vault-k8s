@@ -15,7 +15,7 @@ import (
 const (
 	DefaultMapTemplate  = "{{ with secret \"%s\" }}{{ range $k, $v := .Data }}{{ $k }}: {{ $v }}\n{{ end }}{{ end }}"
 	DefaultJSONTemplate = "{{ with secret \"%s\" }}{{ .Data | toJSON }}\n{{ end }}"
-	DefaultEnvTemlate   = "{{ with secret \"%s\" }}{{ .Data.%s }}{{ end }}"
+	DefaultEnvTemlate   = "{{ with secret \"%s\" }}{{ %s }}{{ end }}"
 	DefaultTemplateType = "map"
 	PidFile             = "/home/vault/.pid"
 	TokenFile           = "/home/vault/.vault-token"
@@ -272,7 +272,7 @@ func (a *Agent) newEnvTemplateConfigs() map[string]EnvTemplate {
 
 func (a *Agent) newExecConfig() *Exec {
 	return &Exec{
-		Command:                []string{"sleep", "300"},
+		Command:                []string{"/test-app"}, // TODO: don't hardcode this
 		RestartOnSecretChanges: "never",
 		RestartStopSignal:      "SIGTERM",
 	}
