@@ -5,13 +5,6 @@ metadata:
   name: test-app
   labels:
     app: test-app
-spec:
-  serviceAccountName: test-app-sa
-  containers:
-  - name: test-app
-    image: test-app
-    imagePullPolicy: IfNotPresent
-metadata:
   annotations:
     vault.hashicorp.com/role: test-app
     vault.hashicorp.com/agent-inject: 'true'
@@ -20,3 +13,11 @@ metadata:
     vault.hashicorp.com/agent-inject-as-env-test-user: TEST_USER
     vault.hashicorp.com/agent-inject-secret-test-password: secret/data/test-app#.Data.data.password
     vault.hashicorp.com/agent-inject-as-env-test-password: TEST_PASSWORD
+spec:
+  serviceAccountName: test-app-sa
+  containers:
+  - name: test-app
+    image: test-app
+    imagePullPolicy: IfNotPresent
+    ports:
+      - containerPort: 7777
