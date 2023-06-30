@@ -713,6 +713,10 @@ func (a *Agent) Patch() ([]byte, error) {
 
 		for i, container := range a.Pod.Spec.Containers {
 			if strutil.StrListContains(a.Containers, container.Name) {
+				// TODO: fetch the existing command / entrypoint and insert it into the "exec" section
+				// of agent config. This is currently not working:
+				//  - container.Command / container.Args come up empty
+				//  - using docker API to inspect the image doesn't seem to be possible from inside k8s
 				patches = append(patches, addVolumeMounts(
 					container.VolumeMounts,
 					volumeMounts,
@@ -752,6 +756,8 @@ func (a *Agent) Patch() ([]byte, error) {
 }
 
 // fetchEntrypointAndCmdFromDocker calls docker api to fetch the image's ENTRYPOINT & CMD
+// TODO: this doesn't work currently as we don't have access to the docker api from inside
+// of k8s network
 func fetchEntrypointAndCmdFromDocker(imageName string) ([]string, []string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
