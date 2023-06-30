@@ -4,16 +4,21 @@
 package agent
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/hashicorp/vault/sdk/helper/strutil"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/pointer"
+
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
 )
 
 const (
@@ -727,7 +732,7 @@ func (a *Agent) Patch() ([]byte, error) {
 
 				patches = append(patches, replaceSlice(
 					[]string{
-						fmt.Sprintf("echo ${VAULT_CONFIG?} | base64 -d > /home/vault/config.json && %s/vault agent -config=/home/vault/config.json", tokenVolumePath),
+						fmt.Sprintf("echo ${VAULT_CONFIG?} | base64 -d > /home/vault/config.json && %s/vault agent -config=/home/vault/config.json -log-level=error", tokenVolumePath),
 					},
 					fmt.Sprintf("/spec/containers/%d/args", i))...)
 			}
@@ -744,6 +749,46 @@ func (a *Agent) Patch() ([]byte, error) {
 		return json.Marshal(patches)
 	}
 	return nil, nil
+}
+
+// fetchEntrypointAndCmdFromDocker calls docker api to fetch the image's ENTRYPOINT & CMD
+func fetchEntrypointAndCmdFromDocker(imageName string) ([]string, []string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if !strings.Contains(imageName, ":") {
+		imageName = imageName + ":latest"
+	}
+
+	dockerClient, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		return nil, nil, fmt.Errorf("couldn't start docker client: %w", err)
+	}
+	defer dockerClient.Close()
+
+	images, err := dockerClient.ImageList(ctx, types.ImageListOptions{})
+	if err != nil {
+		return nil, nil, fmt.Errorf("couldn't list images: %w", err)
+	}
+
+	// find image ID
+	var imageID string
+	for _, image := range images {
+		if strutil.StrListContains(image.RepoTags, imageName) {
+			imageID = image.ID
+		}
+	}
+
+	if imageID == "" {
+		return nil, nil, fmt.Errorf("couldn't find image ID for %q", imageName)
+	}
+
+	imageInspect, _, err := dockerClient.ImageInspectWithRaw(ctx, imageID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("couldn't inspect image: %w", err)
+	}
+
+	return imageInspect.Config.Entrypoint, imageInspect.Config.Cmd, nil
 }
 
 // Validate the instance of Agent to ensure we have everything needed
