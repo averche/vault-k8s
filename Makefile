@@ -64,18 +64,7 @@ exercise:
 	# clean up
 	kubectl delete pod test-app --ignore-not-found
 	# set up test-app with annotations to pull from 
-	kubectl run test-app \
-		--image="test-app" \
-		--image-pull-policy="IfNotPresent" \
-		--annotations="vault.hashicorp.com/role=test-app" \
-		--annotations="vault.hashicorp.com/template-static-secret-render-interval=5s" \
-		--annotations="vault.hashicorp.com/agent-inject=true" \
-		--annotations="vault.hashicorp.com/agent-inject-direct=true" \
-		--annotations="vault.hashicorp.com/agent-inject-secret-test-user=secret/data/test-app#.Data.data.user" \
-		--annotations="vault.hashicorp.com/agent-inject-as-env-test-user=TEST_USER" \
-		--annotations="vault.hashicorp.com/agent-inject-secret-test-password=secret/data/test-app#.Data.data.password" \
-		--annotations="vault.hashicorp.com/agent-inject-as-env-test-password=TEST_PASSWORD" \
-		--overrides='{ "apiVersion": "v1", "spec": { "serviceAccountName": "test-app-sa" } }'
+	kubectl apply -f test-app/pod.yaml
 	# port-forward to the test-app
 	kubectl wait --for=condition=Ready pod/test-app
 	kubectl port-forward test-app 7777:7777
